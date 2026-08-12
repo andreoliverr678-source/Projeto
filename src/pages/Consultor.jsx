@@ -83,25 +83,17 @@ export default function Consultor() {
   }
 
   return (
-    <>
-      {/* Full-page solid background that covers everything */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'var(--color-bg)',
-        zIndex: 0
-      }} />
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      minHeight: '100vh',
+      background: 'var(--color-bg)',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <Header title="🤖 Consultor de IA" showSettings />
 
-      {/* Layout */}
-      <div style={{
-        position: 'relative',
-        zIndex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--color-bg)',
-      }}>
-        <Header title="🤖 Consultor de IA" showSettings />
 
         {/* Messages - scrollable */}
         <div style={{
@@ -204,32 +196,30 @@ export default function Consultor() {
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={loading || !input.trim()}
+            disabled={loading}
             style={{
               width: '44px',
               height: '44px',
               borderRadius: '50%',
               border: 'none',
-              background: loading || !input.trim()
-                ? '#94a3b8'
-                : 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-              color: '#fff',
+              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+              color: '#ffffff',
               fontSize: '18px',
-              cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              cursor: loading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              boxShadow: loading || !input.trim() ? 'none' : '0 4px 12px rgba(59,130,246,0.45)',
-              transition: 'all 0.15s',
+              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.45)',
+              opacity: loading ? 0.6 : 1,
+              transition: 'all 0.2s ease',
             }}
           >
             ➤
           </button>
         </div>
+        <BottomNav />
       </div>
-
-      <BottomNav />
-    </>
   )
 }

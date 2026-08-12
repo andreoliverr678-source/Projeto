@@ -144,7 +144,7 @@ body {
   font-family: var(--font-family);
   font-size: var(--font-size-base);
   color: var(--color-text);
-  background: var(--color-app-bg);
+  background: var(--color-bg);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -201,6 +201,9 @@ a {
 }
 
 @media (min-width: 520px) {
+  body {
+    background: var(--color-app-bg);
+  }
   #root {
     padding: 24px 16px;
   }

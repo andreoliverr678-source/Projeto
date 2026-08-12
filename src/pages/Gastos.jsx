@@ -66,9 +66,10 @@ export default function Gastos() {
   }).filter(cat => cat.total > 0)
 
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--color-bg)' }}>
       <Header title="Controle de Gastos" />
-      <div className="page-content">
+      <div className="page-content" style={{ flex: 1, paddingBottom: 'calc(var(--bottom-nav-height) + 24px)', background: 'var(--color-bg)' }}>
+
 
         {/* Total Month Card */}
         <div className="card card--primary mb-5 animate-fade-in">
@@ -301,6 +302,6 @@ export default function Gastos() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
