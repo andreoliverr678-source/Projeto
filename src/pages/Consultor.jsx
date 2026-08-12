@@ -51,8 +51,9 @@ export default function Consultor() {
   const bottomRef = useRef(null)
 
   // Calculate exact "Sobrando no bolso agora" (pocketBalance) matching Dashboard
-  const totalAlreadyPaid = (monthlyPaidCommitment || 0) + (thisMonthExpensesThisMonth || totalExpensesThisMonth || 0) + (thisMonthPayments || 0) + (thisMonthEmergencyDeposits || 0)
+  const totalAlreadyPaid = (monthlyPaidCommitment || 0) + (totalExpensesThisMonth || 0) + (thisMonthPayments || 0) + (thisMonthEmergencyDeposits || 0)
   const pocketBalance = Math.max(0, (totalIncome || 0) - totalAlreadyPaid)
+
 
 
   useEffect(() => {

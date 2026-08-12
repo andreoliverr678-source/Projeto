@@ -9,28 +9,28 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = useCallback(async (userId, userEmail = '') => {
-    if (!userId) { setProfile(null); return null }
+    if (!userId) {
+      setProfile(null)
+      return null
+    }
     try {
       const { data } = await supabase
         .from('perfis')
         .select('*')
         .eq('id', userId)
         .maybeSingle()
-      if (data) {
-        setProfile(data)
-        return data
-      } else {
-        const fallback = {
-          id: userId,
-          name: userEmail ? userEmail.split('@')[0] : 'Usuário',
-          onboarding_completed: true
-        }
-        setProfile(fallback)
-        return fallback
+
+      const profileData = data || {
+        id: userId,
+        name: userEmail ? userEmail.split('@')[0] : 'Usuário',
+        onboarding_completed: true,
       }
+
+      setProfile(profileData)
+      return profileData
     } catch (err) {
       console.error('fetchProfile error:', err)
-      const fallback = { id: userId, onboarding_completed: true }
+      const fallback = { id: userId, name: 'Usuário', onboarding_completed: true }
       setProfile(fallback)
       return fallback
     }
@@ -39,40 +39,42 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    // Safety fallback: Never stay stuck in loading state for more than 2.5 seconds
-    const timer = setTimeout(() => {
-      if (mounted) setLoading(false)
-    }, 2500)
-
+    // Initialize session instantly from Supabase local storage
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        const currentUser = session?.user ?? null
-        if (mounted) setUser(currentUser)
-        if (currentUser) {
-          await fetchProfile(currentUser.id, currentUser.email)
-        } else {
-          if (mounted) setProfile(null)
+        if (mounted) {
+          const currentUser = session?.user ?? null
+          setUser(currentUser)
+          setLoading(false) // Unblock UI immediately!
+          if (currentUser) {
+            fetchProfile(currentUser.id, currentUser.email)
+          }
         }
       } catch (err) {
         console.error('Init auth error:', err)
-      } finally {
         if (mounted) setLoading(false)
       }
     }
 
     initAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return
       const currentUser = session?.user ?? null
-      if (mounted) setUser(currentUser)
+      setUser(currentUser)
+      setLoading(false)
       if (currentUser) {
-        await fetchProfile(currentUser.id, currentUser.email)
+        fetchProfile(currentUser.id, currentUser.email)
       } else {
-        if (mounted) setProfile(null)
+        setProfile(null)
       }
-      if (mounted) setLoading(false)
     })
+
+    // Safety fallback: maximum 5s loading screen
+    const timer = setTimeout(() => {
+      if (mounted && loading) setLoading(false)
+    }, 5000)
 
     return () => {
       mounted = false
@@ -103,16 +105,21 @@ export function AuthProvider({ children }) {
         password,
         options: { data: { name } },
       })
-      if (signUpError) return { data: null, error: signUpError }
+      if (signUpError) {
+        let msg = signUpError.message
+        if (msg.includes('User already registered')) msg = 'Este e-mail já está cadastrado. Tente fazer login.'
+        if (msg.includes('Password should be')) msg = 'A senha deve ter pelo menos 6 caracteres.'
+        return { data: null, error: { message: msg } }
+      }
 
-      // Step 2: Sign in immediately to get authenticated session
+      // Step 2: Sign in immediately
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) return { data: null, error: signInError }
 
       const activeUser = signInData.user
       if (!activeUser) return { data: null, error: new Error('Falha ao autenticar após cadastro') }
 
-      // Step 3: Upload avatar if provided (now we have auth session)
+      // Step 3: Upload avatar if provided
       let avatarUrl = null
       if (avatarFile) {
         avatarUrl = await uploadAvatar(activeUser.id, avatarFile)
@@ -123,35 +130,50 @@ export function AuthProvider({ children }) {
         id: activeUser.id,
         name: name || email.split('@')[0],
         avatar_url: avatarUrl,
+        onboarding_completed: true,
         updated_at: new Date().toISOString()
       })
 
-      // Step 5: Load profile into state
-      await fetchProfile(activeUser.id)
+      setUser(activeUser)
+      await fetchProfile(activeUser.id, activeUser.email)
 
       return { data: signInData, error: null }
     } catch (err) {
       console.error('signUp error:', err)
-      return { data: null, error: err }
+      return { data: null, error: { message: 'Erro ao criar conta. Tente novamente.' } }
     }
   }
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (data?.user) await fetchProfile(data.user.id)
-    return { data, error }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        let msg = error.message
+        if (msg === 'Invalid login credentials') msg = 'E-mail ou senha incorretos.'
+        if (msg.includes('Email not confirmed')) msg = 'E-mail não confirmado. Verifique sua caixa de entrada.'
+        if (msg.includes('Failed to fetch')) msg = 'Sem conexão com a internet. Verifique sua rede.'
+        return { data: null, error: { message: msg } }
+      }
+      if (data?.user) {
+        setUser(data.user)
+        fetchProfile(data.user.id, data.user.email)
+      }
+      return { data, error: null }
+    } catch (err) {
+      return { data: null, error: { message: 'Erro ao entrar. Tente novamente.' } }
+    }
   }
 
   const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/home` }
+      options: { redirectTo: `${window.location.origin}/dashboard` }
     })
     return { data, error }
   }
 
   const updateProfile = async ({ name, avatarFile }) => {
-    if (!user) return { error: 'Not logged in' }
+    if (!user) return { error: 'Não autenticado' }
     let avatarUrl = profile?.avatar_url
     if (avatarFile) {
       const newUrl = await uploadAvatar(user.id, avatarFile)
@@ -189,7 +211,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       user, profile, loading,
       signUp, signIn, signInWithGoogle, updateProfile, signOut, completeOnboarding,
-      refreshProfile: () => user && fetchProfile(user.id)
+      refreshProfile: () => user && fetchProfile(user.id, user.email)
     }}>
       {children}
     </AuthContext.Provider>

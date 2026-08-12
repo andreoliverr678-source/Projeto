@@ -4,15 +4,9 @@ import './index.css'
 import App from './App.jsx'
 import { registerServiceWorker } from './utils/pushNotifications'
 
-// Force unregister any old Service Worker, then register new one fresh
+// Automatically register Service Worker for Push Notifications cleanly
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    // Unregister all existing SWs first to bust any stale cache
-    const registrations = await navigator.serviceWorker.getRegistrations()
-    for (const registration of registrations) {
-      await registration.unregister()
-    }
-    // Now re-register the current SW cleanly
+  window.addEventListener('load', () => {
     registerServiceWorker()
   })
 }
