@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Header } from '../components/layout/Header'
 import { BottomNav } from '../components/layout/BottomNav'
 import { supabase } from '../lib/supabase'
+import { useDebts, currentYearMonth } from '../contexts/DebtContext'
 
 const QUICK_ACTIONS = [
   { id: 'prioridade', label: '📊 Qual dívida devo pagar primeiro?' },
@@ -11,7 +12,33 @@ const QUICK_ACTIONS = [
   { id: 'simular', label: '⚡ Simular pagamento antecipado' },
 ]
 
+// Cleans up any leftover markdown and renders text with proper line breaks
+function renderMessage(text) {
+  // Remove markdown: ###, **, *, _ for formatting
+  const clean = text
+    .replace(/#{1,6}\s?/g, '')      // remove ### headings
+    .replace(/\*\*(.+?)\*\*/g, '$1') // remove **bold**
+    .replace(/\*(.+?)\*/g, '$1')     // remove *italic*
+    .replace(/^- /gm, '• ')          // convert - list to bullet •
+
+  return clean.split('\n').map((line, i) => (
+    <span key={i}>
+      {line}
+      {i < clean.split('\n').length - 1 && <br />}
+    </span>
+  ))
+}
+
 export default function Consultor() {
+  const {
+    debts,
+    totalIncome,
+    monthlyPaidCommitment,
+    thisMonthPayments,
+    totalExpensesThisMonth,
+    thisMonthEmergencyDeposits,
+  } = useDebts()
+
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -22,6 +49,11 @@ export default function Consultor() {
   const [loading, setLoading] = useState(false)
   const [showActions, setShowActions] = useState(true)
   const bottomRef = useRef(null)
+
+  // Calculate exact "Sobrando no bolso agora" (pocketBalance) matching Dashboard
+  const totalAlreadyPaid = (monthlyPaidCommitment || 0) + (thisMonthExpensesThisMonth || totalExpensesThisMonth || 0) + (thisMonthPayments || 0) + (thisMonthEmergencyDeposits || 0)
+  const pocketBalance = Math.max(0, (totalIncome || 0) - totalAlreadyPaid)
+
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -35,7 +67,7 @@ export default function Consultor() {
     setShowActions(false)
     try {
       const { data, error } = await supabase.functions.invoke('ai-consultant', {
-        body: { message: text }
+        body: { message: text, pocketBalance }
       })
       if (error) throw error
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply || 'Não consegui gerar uma resposta.' }])
@@ -93,12 +125,11 @@ export default function Consultor() {
                   : 'var(--color-surface)',
                 color: msg.role === 'user' ? '#fff' : 'var(--color-text)',
                 fontSize: '0.9rem',
-                lineHeight: '1.5',
+                lineHeight: '1.6',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
               }}>
-                {msg.content}
+                {msg.role === 'assistant' ? renderMessage(msg.content) : msg.content}
               </div>
             </div>
           ))}
