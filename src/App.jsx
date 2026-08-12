@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard'
 import Gastos from './pages/Gastos'
 import Renegociacao from './pages/Renegociacao'
 import Perfil from './pages/Perfil'
+import Consultor from './pages/Consultor'
 
 function LoadingScreen() {
   return (
@@ -88,6 +89,7 @@ export default function App() {
                 {/* Protected Routes */}
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                 <Route path="/plano" element={<PrivateRoute><Plano /></PrivateRoute>} />
+                <Route path="/consultor" element={<PrivateRoute><Consultor /></PrivateRoute>} />
                 <Route path="/gastos" element={<PrivateRoute><Gastos /></PrivateRoute>} />
                 <Route path="/diagnostico" element={<PrivateRoute><Diagnostico /></PrivateRoute>} />
                 <Route path="/renegociacao" element={<PrivateRoute><Renegociacao /></PrivateRoute>} />

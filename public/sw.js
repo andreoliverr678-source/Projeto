@@ -1,11 +1,18 @@
 // Service Worker for Desafoga Web Push Notifications
+// Version bumped on each deploy to force cache invalidation
+const SW_VERSION = '2026-08-12-v3'
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting()
+  self.skipWaiting() // Force immediate activation
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  // Claim all clients and clear any old caches immediately
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(key => caches.delete(key)))
+    ).then(() => self.clients.claim())
+  )
 })
 
 // Listen for incoming Push Notifications from backend
