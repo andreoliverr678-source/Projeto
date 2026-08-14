@@ -52,8 +52,10 @@ export default function Consultor() {
 
   // Calculate exact "Sobrando no bolso agora" (pocketBalance) matching Dashboard
   const totalAlreadyPaid = (monthlyPaidCommitment || 0) + (totalExpensesThisMonth || 0) + (thisMonthPayments || 0) + (thisMonthEmergencyDeposits || 0)
-  const pocketBalance = Math.max(0, (totalIncome || 0) - totalAlreadyPaid)
-
+  const calcPocketBalance = Math.max(0, (totalIncome || 0) - totalAlreadyPaid)
+  // Respect manual override set by user in the Dashboard
+  const storedOverride = localStorage.getItem('desafoga_pocket_override')
+  const pocketBalance = storedOverride !== null ? Number(storedOverride) : calcPocketBalance
 
 
   useEffect(() => {

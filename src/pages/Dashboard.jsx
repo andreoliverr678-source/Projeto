@@ -35,6 +35,30 @@ function IncomeCard({
   onSave
 }) {
   const [editing, setEditing] = useState(false)
+  const [editingPocket, setEditingPocket] = useState(false)
+  const [pocketInput, setPocketInput] = useState('')
+
+  // Load pocket override from localStorage on mount
+  const storedOverride = localStorage.getItem('desafoga_pocket_override')
+  const pocketOverride = storedOverride !== null ? Number(storedOverride) : null
+
+  const savePocketOverride = () => {
+    const val = Number(pocketInput)
+    if (!isNaN(val) && pocketInput !== '') {
+      localStorage.setItem('desafoga_pocket_override', String(val))
+    }
+    setEditingPocket(false)
+    setPocketInput('')
+    // force re-render by toggling a dummy state
+    window.dispatchEvent(new Event('pocket-override-changed'))
+  }
+
+  const clearPocketOverride = () => {
+    localStorage.removeItem('desafoga_pocket_override')
+    setEditingPocket(false)
+    setPocketInput('')
+    window.dispatchEvent(new Event('pocket-override-changed'))
+  }
 
   // Local edit state — always work with salaryParts
   const initialParts = income.salaryParts?.length
@@ -69,11 +93,13 @@ function IncomeCard({
     setEditing(false)
   }
 
-  // Total paid out so far this month (contas mensais pagas + pagamentos extras + gastos variáveis + depósitos da reserva)
+  // Total paid out so far this month
   const totalAlreadyPaid = monthlyPaidCommitment + thisMonthPayments + totalExpensesThisMonth + thisMonthEmergencyDeposits
-  // Money remaining in pocket right now (Renda total - o que realmente já foi pago ou guardado na reserva)
-  const pocketBalance = totalIncome - totalAlreadyPaid
-  // Final expected balance at month end (após pagar as contas pendentes do mês)
+  // Calculated pocket balance
+  const calcPocketBalance = totalIncome - totalAlreadyPaid
+  // Use manual override if set, otherwise calculated
+  const pocketBalance = pocketOverride !== null ? pocketOverride : calcPocketBalance
+  // Final expected balance at month end
   const finalBalance = totalIncome - (totalAlreadyPaid + monthlyPendingCommitment)
   // Percentage of total income paid out so far this month
   const balancePct = totalIncome > 0 ? Math.min(100, Math.round((totalAlreadyPaid / totalIncome) * 100)) : 0
@@ -221,12 +247,76 @@ function IncomeCard({
 
           <div className="income-card__divider" />
 
-          <div className="income-card__row income-card__row--balance">
-            <span>💰 Sobrando no bolso agora</span>
-            <span style={{ color: pocketBalance >= 0 ? '#7FE5A4' : '#FF8080', fontSize: 'var(--font-size-md)', fontWeight: 800 }}>
-              {formatBRL(pocketBalance)}
-            </span>
-          </div>
+          {editingPocket ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 0' }}>
+              <span style={{ fontSize: '0.78rem', opacity: 0.7, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                💰 Disponível — editar
+              </span>
+              <CurrencyInput
+                className="form-input income-card__input"
+                value={pocketInput}
+                onChange={val => setPocketInput(val)}
+                placeholder={calcPocketBalance.toFixed(2).replace('.', ',')}
+                autoFocus
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={savePocketOverride}
+                  style={{ flex: 1, background: 'rgba(127,229,164,0.25)', color: '#7FE5A4', border: '1px solid #7FE5A4', borderRadius: '8px', padding: '8px 0', fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
+                >
+                  ✓ Salvar
+                </button>
+                <button
+                  onClick={() => { setEditingPocket(false); setPocketInput('') }}
+                  style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: '8px', padding: '8px 14px', cursor: 'pointer', fontSize: '0.88rem' }}
+                >
+                  ✕
+                </button>
+              </div>
+              {pocketOverride !== null && (
+                <button
+                  onClick={clearPocketOverride}
+                  style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                >
+                  🔄 Resetar para calculado ({formatBRL(calcPocketBalance)})
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="income-card__row income-card__row--balance">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.88rem' }}>
+                💰 No bolso agora
+                {pocketOverride !== null && (
+                  <span style={{ fontSize: '0.6rem', background: 'rgba(255,216,0,0.2)', color: '#FFD700', borderRadius: '4px', padding: '1px 5px', fontWeight: 700 }}>manual</span>
+                )}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ color: pocketBalance >= 0 ? '#7FE5A4' : '#FF8080', fontSize: 'var(--font-size-md)', fontWeight: 800 }}>
+                  {formatBRL(pocketBalance)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setEditingPocket(true); setPocketInput(String(pocketBalance)) }}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '26px',
+                    height: '26px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                  title="Editar valor no bolso"
+                >
+                  ✏️
+                </button>
+              </span>
+            </div>
+          )}
 
           {monthlyPendingCommitment > 0 && (
             <div className="income-card__row" style={{ opacity: 0.8, fontSize: '0.8rem' }}>
